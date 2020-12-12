@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Youtube Better Shuffler</title>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+</head>
+<body>
+    <h1>Youtube Better Shuffler - (Duke's Randomiser)</h1>
+    <p>A standalone webpage which randomises better than youtube's shuffle option!</p>
+    <h3>Enter your playlist URL</h3>
+    <form>
+        <label for="listURL">URL:</label>
+        <input type="text" id="listURL" name="listURL" />
+        <input type="submit" value="Submit" />
+    </form>
+    <br /><br />
+    <div id="player">...enter a playlist to load youtube...</div>
+    <br /><br />
+    <p>Liam Chessell 2020</p>
+
+    <script>
+
+        // Store video index, video count, previously played
+        var videoIndex, videoCount;
+        var previouslyPlayed = [];
+
+        // Youtube API basic code
+        var tag = document.createElement('script');
+
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        var player;
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '270',
+                width: '480',
+                //videoId: 'M7lc1UVf-VE', //Youtube API Guides video
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': function (e) {
+                        var errcode = e.data;
+                        console.log(errcode);
+                        if (errcode == 100 || errcode == 150) {
+                            videoPlayError();
+                        }
+                    }
+                }
+            });
+        }
+
+        // Validate an entered URL
+        function validateYoutubeURL(url) {
+            var regExp = /^(?:https?:\/\/)?(?:www\.)?youtube\.com(?:\S+)?$/;
+            return url.match(regExp) && url.match(regExp).length > 0;
+        }
+
+        // Get playlist id from entered URL
+        function getPlaylistID(url) {
+            var reg = new RegExp("[&?]list=([a-z0-9_-]+)", "i");
+            var match = reg.exec(url);
+
+            if (match && match[1].length > 0 && validateYoutubeURL(url)) {
+                return match[1];
+            } else {
+                return "";
+            }
+        }
+
+        // Set playlist to play
+        document.querySelector('form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            //https://www.youtube.com/playlist?list=PLXSJa_vE35Uns5IK9jz0LGGPsDTdIXsNH
+
+            var url = document.getElementById('listURL').value;
+            document.getElementById('listURL').value = "";
+
+            var playlistId = getPlaylistID(url);
+            if (playlistId == "") {
+                alert("Error - URL not recognised");
+            } else {
+                startPlaylist(playlistId);
+            }
+
+            return false;
+        });
+
+        function onPlayerReady(event) {
+            //console.log('ready');
+            //player.playVideo();
+        }
+
+        var done = false;
+        function onPlayerStateChange(event) {
+
+            if (event.data == YT.PlayerState.CUED && !done) {
+                done = true;
+                videoCount = player.getPlaylist().length;
+                setTimeout(nextVideo, 1000);
+                return;
+            }
+
+            if (event.data == YT.PlayerState.ENDED && !done) {
+                done = true;
+                player.stopVideo();
+                setTimeout(nextVideo, 1000);
+                return;
+            }
+
+            if (event.data == YT.PlayerState.PLAYING && !done) {
+                //done = true;
+                //setTimeout(nextVideo, 6000);
+                //return;
+            }
+        }
+
+        function startPlaylist(id) {
+            console.log(id);
+            player.cuePlaylist({ 'list': id });
+        }
+
+        function videoPlayError() {
+            console.log('Failed to play a video, moving to next one');
+            nextVideo();
+        }
+
+        /*
+        Shuffle Code
+        - Choose a new video that hasn't been played by checking the random number is not in previouslyPlayed list of indices
+        - When the full playlist has been played, reset previouslyPlayer and set the first index to the video that has just finished
+        */
+        function nextVideo() {
+            if (previouslyPlayed.length == videoCount) {
+                previouslyPlayed = [];
+                previouslyPlayed.push(videoIndex);
+            }
+
+            var newIndex = -1;
+            while (newIndex == -1) {
+                newIndex = Math.floor(Math.random() * videoCount);
+
+                for (var i = 0, imax = previouslyPlayed.length; i < imax; i++) {
+                    if (previouslyPlayed[i] == newIndex) {
+                        newIndex = -1;
+                        break;
+                    }
+                }
+            }
+
+            videoIndex = newIndex;
+            previouslyPlayed.push(videoIndex);
+            done = false;
+
+            player.playVideoAt(videoIndex);
+        }
+    </script>
+</body>
+</html>
